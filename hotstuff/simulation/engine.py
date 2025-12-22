@@ -249,12 +249,41 @@ class SimulationEngine:
         return event
     
     def _on_block_committed(self, replica_id: int, commit_event: dict) -> None:
-        """Handle a block commit."""
-        view = self._current_view
+        """
+        Handle a block commit - advance to next view (happy path).
+        
+        When a block is committed, we immediately advance to the next view
+        instead of waiting for the pacemaker timeout.
+        """
+        view = self._replicas[replica_id].current_view
+        
         if view in self._view_start_times:
             duration = self._clock.current_time - self._view_start_times[view]
             pacemaker = self._pacemakers[replica_id]
             pacemaker.on_view_success(view, duration)
+            pacemaker.stop_timer()
+        
+        next_view = ViewNumber(view + 1)
+        
+        if next_view > self._current_view:
+            self._current_view = next_view
+            self._view_start_times[next_view] = self._clock.current_time
+        
+        view_events = self._replicas[replica_id].start_view(next_view, self._clock.current_time)
+        for v_event in view_events:
+            self._event_history.append(v_event)
+        
+        pacemaker = self._pacemakers[replica_id]
+        new_timeout = pacemaker.start_timer(next_view, self._clock.current_time)
+        self._scheduler.schedule(
+            {
+                "type": "TIMEOUT",
+                "replica_id": replica_id,
+                "view": next_view,
+                "timeout_time": new_timeout
+            },
+            new_timeout
+        )
     
     def pause(self) -> None:
         """Pause the simulation."""

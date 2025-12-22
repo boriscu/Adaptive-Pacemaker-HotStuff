@@ -19,6 +19,7 @@ class SimulationManager:
         self.started = False
         self.thread = None
         self.max_time = 1000.0
+        self.step_delay = 2.5 # Default 2.5s/step (Slowed down from 0.5)
 
     def start_simulation(self):
         if self.running: 
@@ -44,7 +45,7 @@ class SimulationManager:
         # Let's modify logic: We run small chunks (steps).
         while self.running and self.env.engine.current_time < self.max_time:
             self.env.engine.run(max_time=self.env.engine.current_time + 1.0) # Run 1 sec virtual time
-            time.sleep(0.5) # Slow down for UI to catch up
+            time.sleep(self.step_delay) # Slow down for UI to catch up
 
     def stop_simulation(self):
         self.running = False
@@ -99,6 +100,14 @@ def control():
     elif action == 'reset':
         sim_manager.reset_simulation()
     return jsonify({"success": True})
+
+@app.route('/api/speed', methods=['POST'])
+def set_speed():
+    """Set simulation step delay."""
+    data = request.json
+    if 'delay' in data:
+        sim_manager.step_delay = float(data['delay'])
+    return jsonify({"success": True, "delay": sim_manager.step_delay})
 
 @app.route('/api/config', methods=['POST'])
 def update_config():

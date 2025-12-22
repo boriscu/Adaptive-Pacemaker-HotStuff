@@ -1,26 +1,43 @@
 const ReplicaPanel = {
+    expandedReplicas: new Set(),
+
     init() {
         document.getElementById('replica-list').addEventListener('click', (e) => {
             const card = e.target.closest('.replica-card');
             if (card) {
-                card.classList.toggle('expanded');
+                const replicaId = parseInt(card.dataset.replicaId);
+                if (this.expandedReplicas.has(replicaId)) {
+                    this.expandedReplicas.delete(replicaId);
+                    card.classList.remove('expanded');
+                } else {
+                    this.expandedReplicas.add(replicaId);
+                    card.classList.add('expanded');
+                }
             }
         });
     },
     
     update(replicas) {
         const container = document.getElementById('replica-list');
-        container.innerHTML = '';
+        
+        const fragment = document.createDocumentFragment();
         
         for (const replica of replicas) {
             const card = this.createCard(replica);
-            container.appendChild(card);
+            if (this.expandedReplicas.has(replica.replica_id)) {
+                card.classList.add('expanded');
+            }
+            fragment.appendChild(card);
         }
+        
+        container.innerHTML = '';
+        container.appendChild(fragment);
     },
     
     createCard(replica) {
         const card = document.createElement('div');
         card.className = 'replica-card';
+        card.dataset.replicaId = replica.replica_id;
         
         if (replica.is_leader) {
             card.classList.add('leader');

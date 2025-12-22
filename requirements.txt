@@ -3,3 +3,5 @@ pydantic-settings>=2.0
 flask>=2.0
 networkx>=3.0
 numpy>=1.20
+pytest>=7.0
+pytest-cov>=4.0

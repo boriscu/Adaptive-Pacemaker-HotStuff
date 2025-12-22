@@ -1,0 +1,3 @@
+"""
+Protocol-related exceptions.
+"""

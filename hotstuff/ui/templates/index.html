@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HotStuff Consensus Simulation</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.25.0/cytoscape.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <h1>🔥 HotStuff Consensus Simulation</h1>
+            <div class="status-bar">
+                <span id="status-indicator" class="status-stopped">Stopped</span>
+                <span id="time-display">Time: 0ms</span>
+                <span id="view-display">View: 1</span>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="network-panel">
+                <h2>Network Topology</h2>
+                <div id="network-graph"></div>
+                <div class="network-legend">
+                    <span class="legend-item"><span class="node-normal"></span> Normal</span>
+                    <span class="legend-item"><span class="node-leader"></span> Leader</span>
+                    <span class="legend-item"><span class="node-faulty"></span> Faulty</span>
+                </div>
+            </section>
+
+            <aside class="sidebar">
+                <section class="control-panel">
+                    <h3>Simulation Controls</h3>
+                    <div class="control-buttons">
+                        <button id="btn-start" class="btn btn-primary">▶ Start</button>
+                        <button id="btn-pause" class="btn btn-secondary" disabled>⏸ Pause</button>
+                        <button id="btn-step" class="btn btn-secondary">⏭ Step</button>
+                        <button id="btn-reset" class="btn btn-danger">↻ Reset</button>
+                    </div>
+                    <div class="speed-control">
+                        <label for="speed-slider">Speed:</label>
+                        <input type="range" id="speed-slider" min="1" max="100" value="50">
+                        <span id="speed-value">50</span>
+                    </div>
+                    <div class="step-count">
+                        <label for="step-count">Steps per run:</label>
+                        <input type="number" id="step-count" min="1" max="1000" value="10">
+                        <button id="btn-run-steps" class="btn btn-small">Run</button>
+                    </div>
+                </section>
+
+                <section class="replica-panels">
+                    <h3>Replicas</h3>
+                    <div id="replica-list"></div>
+                </section>
+
+                <section class="metrics-panel">
+                    <h3>Metrics</h3>
+                    <div id="metrics-display">
+                        <div class="metric-item">
+                            <span class="metric-label">Commits:</span>
+                            <span id="metric-commits" class="metric-value">0</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Timeouts:</span>
+                            <span id="metric-timeouts" class="metric-value">0</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Avg Latency:</span>
+                            <span id="metric-latency" class="metric-value">0ms</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Throughput:</span>
+                            <span id="metric-throughput" class="metric-value">0 blk/s</span>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+        </main>
+
+        <section class="event-log-panel">
+            <h3>Event Log</h3>
+            <div id="event-log"></div>
+        </section>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/network_graph.js"></script>
+    <script src="/static/js/replica_panel.js"></script>
+    <script src="/static/js/event_log.js"></script>
+    <script src="/static/js/controls.js"></script>
+</body>
+</html>

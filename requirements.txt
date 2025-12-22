@@ -1,0 +1,4 @@
+pydantic>=2.0
+flask>=2.0
+networkx>=3.0
+numpy>=1.20

@@ -69,6 +69,8 @@
         </div>
     </div>
 
+    <div id="tooltip" style="position: absolute; display: none; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 4px; pointer-events: none; font-size: 12px; z-index: 100;"></div>
+
     <script>
         function control(action) {
             fetch('/api/control', {
@@ -101,11 +103,23 @@
 
         // Particle System
         const particles = [];
+        let simulationRunning = false;
+        let currentStepDelay = 2.5;
 
         function updateParticles(width, height) {
+            if (!simulationRunning) return; // Pause animation if sim is stopped
+
+            // Calculate speed to cross in ~ 60% of step delay (arbitrary nice visual)
+            // If delay is huge, we want slow particles.
+            // speed = (1 / frames)
+            // frames = delay * 60 (approx)
+            // let's aim for travel time = step_delay * 0.8
+            const travelSeconds = currentStepDelay * 0.8;
+            const speed = 1.0 / (travelSeconds * 60);
+
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
-                p.progress += 0.02; // Speed of animation (frames)
+                p.progress += speed; 
                 
                 if (p.progress >= 1.0) {
                     particles.splice(i, 1);
@@ -122,6 +136,10 @@
                 
                 const x = srcNode.x + (dstNode.x - srcNode.x) * p.progress;
                 const y = srcNode.y + (dstNode.y - srcNode.y) * p.progress;
+                
+                // Store current pos for tooltip detection
+                p.currentX = x;
+                p.currentY = y;
                 
                 ctx.beginPath();
                 ctx.arc(x, y, 6, 0, 2 * Math.PI);
@@ -159,6 +177,38 @@
         
         // Start animation loop
         requestAnimationFrame(animate);
+
+        // Interaction for Tooltips
+        const canvas = document.getElementById('topoCanvas');
+        const tooltip = document.getElementById('tooltip');
+        
+        canvas.addEventListener('mousemove', (e) => {
+           const rect = canvas.getBoundingClientRect();
+           const mx = e.clientX - rect.left;
+           const my = e.clientY - rect.top;
+           
+           let found = null;
+           // Check particles
+           for (let p of particles) {
+               if (p.currentX !== undefined) {
+                   const dx = mx - p.currentX;
+                   const dy = my - p.currentY;
+                   if (dx*dx + dy*dy < 100) { // radius 10 squared
+                       found = p;
+                       break;
+                   }
+               }
+           }
+           
+           if (found) {
+               tooltip.style.display = 'block';
+               tooltip.style.left = (e.pageX + 10) + 'px';
+               tooltip.style.top = (e.pageY + 10) + 'px';
+               tooltip.innerHTML = `<strong>${found.type}</strong><br>${found.info || ''}`;
+           } else {
+               tooltip.style.display = 'none';
+           }
+        });
 
         function drawFrame(ctx, width, height) {
              const cx = width / 2;
@@ -269,6 +319,10 @@
                 document.getElementById('avgLatency').innerText = data.metrics.avg_latency.toFixed(4);
                 document.getElementById('viewChanges').innerText = data.metrics.view_changes;
 
+                // Sync globals
+                simulationRunning = data.running;
+                if (data.step_delay) currentStepDelay = data.step_delay;
+
                 // Update Replicas Data
                 drawTopology(data.replicas);
                 
@@ -279,7 +333,8 @@
                             src: m.src,
                             dst: m.dst,
                             type: m.type,
-                            progress: 0.0
+                            progress: 0.0,
+                            info: m.info // Store info
                         });
                     });
                 }

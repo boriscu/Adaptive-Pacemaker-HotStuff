@@ -35,11 +35,17 @@ class SimulatedNetwork(Network):
         latency = self._calculate_latency()
         
         # Track for visualizer
+        info = f"View {msg.view_number}"
+        if msg.node:
+             info += f" Node {msg.node.hash[:6]}"
+             
         self.recent_messages.append({
             "src": msg.sender,
             "dst": destination,
             "type": msg.type.name,
-            "latency": latency
+            "latency": latency,
+            "info": info,
+            "view": msg.view_number
         })
         
         self.scheduler_callback(latency, msg, destination)
@@ -55,12 +61,15 @@ class SimulatedNetwork(Network):
         latency = self._calculate_latency()
 
         # Track for visualizer
+        info = f"View {vote.view_number} Hash {vote.node_hash[:6]}"
         self.recent_messages.append({
             "src": vote.sender,
             "dst": destination,
             "type": "VOTE", # Simplified type
             "sub_type": vote.type.name,
-            "latency": latency
+            "latency": latency,
+            "info": info,
+            "view": vote.view_number
         })
 
         self.scheduler_callback(latency, vote, destination)

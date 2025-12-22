@@ -82,7 +82,8 @@ def get_status():
         "running": sim_manager.running,
         "metrics": collector.get_summary(),
         "replicas": replicas_state,
-        "messages": msgs
+        "messages": msgs,
+        "step_delay": sim_manager.step_delay
     })
 
 @app.route('/api/control', methods=['POST'])

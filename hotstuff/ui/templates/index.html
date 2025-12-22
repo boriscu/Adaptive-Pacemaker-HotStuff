@@ -6,7 +6,7 @@
     <title>HotStuff Simulation</title>
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
-        .dashboard { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .dashboard { display: flex; flex-direction: column; gap: 20px; }
         .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h1 { margin-top: 0; }
         .controls button { padding: 10px 15px; margin-right: 10px; cursor: pointer; }
@@ -51,9 +51,9 @@
         </div>
 
         <div class="panel">
-            <h2>Replicas State</h2>
-            <div id="replicaGrid" class="replica-grid">
-                <!-- Replicas populated here -->
+            <h2>Replicas Topology</h2>
+            <div id="canvasContainer" style="text-align: center;">
+                <canvas id="topoCanvas" width="1000" height="600" style="border:1px solid #ddd; background: white; border-radius: 4px;"></canvas>
             </div>
         </div>
     </div>
@@ -79,6 +79,80 @@
             }).then(() => control('reset'));
         }
 
+        function drawTopology(replicas) {
+            const canvas = document.getElementById('topoCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const cx = width / 2;
+            const cy = height / 2;
+            
+            // Clear
+            ctx.clearRect(0, 0, width, height);
+            
+            const ids = Object.keys(replicas).sort();
+            const N = ids.length;
+            const radius = Math.min(width, height) / 2 - 80; // Leave margin for labels
+            
+            const nodes = [];
+            
+            // Calculate positions
+            ids.forEach((rid, i) => {
+                const angle = (2 * Math.PI * i) / N - Math.PI / 2; // start at top
+                nodes.push({
+                    id: rid,
+                    x: cx + radius * Math.cos(angle),
+                    y: cy + radius * Math.sin(angle),
+                    data: replicas[rid]
+                });
+            });
+            
+            // Draw edges (Fully connected graph)
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < N; i++) {
+                for (let j = i + 1; j < N; j++) {
+                    ctx.beginPath();
+                    ctx.moveTo(nodes[i].x, nodes[i].y);
+                    ctx.lineTo(nodes[j].x, nodes[j].y);
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw nodes
+            nodes.forEach(node => {
+                const r = node.data;
+                
+                // Circle
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 45, 0, 2 * Math.PI);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = (r.leader) ? 'gold' : '#666'; // Highlight leader if we knew (data doesn't imply leader directly but let's leave hook)
+                // Actually r.leader isn't in data, but let's check r.view logic eventually
+                ctx.stroke();
+                
+                // Text ID
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`R${node.id}`, node.x, node.y - 10);
+
+                // Status Text below
+                ctx.font = '12px sans-serif';
+                ctx.fillText(`View: ${r.view}`, node.x, node.y + 10);
+                ctx.fillText(`Height: ${r.height}`, node.x, node.y + 24);
+                
+                // Last Commit Hash
+                if (r.last_commit) {
+                     ctx.fillStyle = '#444';
+                     ctx.fillText(r.last_commit.substring(0,6), node.x, node.y + 38);
+                }
+            });
+        }
+
         function updateDashboard() {
             fetch('/api/status')
             .then(res => res.json())
@@ -88,21 +162,7 @@
                 document.getElementById('avgLatency').innerText = data.metrics.avg_latency.toFixed(4);
                 document.getElementById('viewChanges').innerText = data.metrics.view_changes;
 
-                const grid = document.getElementById('replicaGrid');
-                grid.innerHTML = '';
-                
-                Object.keys(data.replicas).forEach(rid => {
-                    const r = data.replicas[rid];
-                    const div = document.createElement('div');
-                    div.className = 'replica-card';
-                    div.innerHTML = `
-                        <strong>Replica ${rid}</strong><br>
-                        View: ${r.view}<br>
-                        Height: ${r.height}<br>
-                        Last Hash: ${r.last_commit}
-                    `;
-                    grid.appendChild(div);
-                });
+                drawTopology(data.replicas);
             });
         }
 

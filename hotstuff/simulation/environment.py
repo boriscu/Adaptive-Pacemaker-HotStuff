@@ -94,6 +94,11 @@ class Environment:
                 pacemaker=pm,
                 timer_scheduler=self._timer_scheduler_shim
             )
+
+            # Assign Faults (Last F nodes)
+            # e.g. if N=4, F=1, node 3 is faulty.
+            if i >= config.N - config.F:
+                replica.is_faulty = True
             
             # 3. Create Harness
             harness = ReplicaHarness(replica)

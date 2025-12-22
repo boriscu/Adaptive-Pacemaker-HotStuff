@@ -38,6 +38,7 @@ class Replica(ReplicaInterface):
         
         # State Variables
         self.view = 0
+        self.is_faulty = False # Added for simulation
         self.locked_qc: Optional[QC] = None
         self.prepare_qc: Optional[QC] = None # Basic HotStuff specific
         self.precommit_qc: Optional[QC] = None # Basic HotStuff specific

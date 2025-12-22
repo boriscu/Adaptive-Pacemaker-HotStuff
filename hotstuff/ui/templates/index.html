@@ -127,11 +127,31 @@
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, 45, 0, 2 * Math.PI);
                 ctx.fillStyle = '#fff';
+                
+                // Color coding
+                if (r.is_faulty) {
+                    ctx.fillStyle = '#ffebee'; // Light red background
+                    ctx.strokeStyle = '#d32f2f'; // Red border
+                } else if (r.is_leader) {
+                    ctx.fillStyle = '#fff8e1'; // Light yellow background
+                    ctx.strokeStyle = '#ffa000'; // Gold border
+                } else {
+                    ctx.fillStyle = '#fff';
+                    ctx.strokeStyle = '#666';
+                }
+                
                 ctx.fill();
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = (r.leader) ? 'gold' : '#666'; // Highlight leader if we knew (data doesn't imply leader directly but let's leave hook)
-                // Actually r.leader isn't in data, but let's check r.view logic eventually
+                ctx.lineWidth = r.is_leader ? 4 : 2; // Thicker border for leader
                 ctx.stroke();
+                
+                // Decoration (Crown for leader, X for faulty)
+                if (r.is_leader) {
+                    ctx.font = '20px serif';
+                    ctx.fillText('👑', node.x, node.y - 35);
+                } else if (r.is_faulty) {
+                     ctx.font = '20px serif';
+                     ctx.fillText('💀', node.x, node.y - 35);
+                }
                 
                 // Text ID
                 ctx.fillStyle = '#000';

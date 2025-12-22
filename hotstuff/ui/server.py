@@ -71,11 +71,14 @@ def get_status():
     replicas_state = {}
     for rid, harness in sim_manager.env.replicas.items():
         r = harness.replica
+        leader_id = r.pacemaker.get_leader(r.view)
         replicas_state[rid] = {
             "view": r.view,
             "height": r.executed_up_to_height,
             "commits": len(r.committed_blocks),
-            "last_commit": r.committed_blocks[-1].hash[:8] if r.committed_blocks else "None" 
+            "last_commit": r.committed_blocks[-1].hash[:8] if r.committed_blocks else "None",
+            "is_leader": (leader_id == r.id),
+            "is_faulty": r.is_faulty
         }
 
     return jsonify({

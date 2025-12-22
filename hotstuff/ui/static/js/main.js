@@ -10,7 +10,14 @@ const App = {
         ReplicaPanel.init();
         EventLog.init();
         Controls.init();
+        await Controls.loadConfig();
         
+        await this.refreshState();
+    },
+    
+    async refreshAll() {
+        await this.loadConfig();
+        await Controls.loadConfig();
         await this.refreshState();
     },
     

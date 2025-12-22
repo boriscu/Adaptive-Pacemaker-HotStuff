@@ -30,6 +30,34 @@
             </section>
 
             <aside class="sidebar">
+                <section class="config-panel" id="config-panel">
+                    <h3>Configuration</h3>
+                    <div class="config-row">
+                        <label for="config-replicas">Replicas (n):</label>
+                        <input type="number" id="config-replicas" min="4" max="31" value="4">
+                    </div>
+                    <div class="config-row">
+                        <label for="config-faulty">Faulty (f):</label>
+                        <input type="number" id="config-faulty" min="0" max="10" value="1">
+                    </div>
+                    <div class="config-row">
+                        <label for="config-pacemaker">Pacemaker:</label>
+                        <select id="config-pacemaker">
+                            <option value="baseline">Baseline</option>
+                            <option value="adaptive">Adaptive</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <label for="config-timeout">Timeout (ms):</label>
+                        <input type="number" id="config-timeout" min="100" max="10000" value="1000" step="100">
+                    </div>
+                    <div class="config-info" id="config-info">
+                        <span>Quorum: <strong id="quorum-size">3</strong></span>
+                        <span>Max f: <strong id="max-faulty">1</strong></span>
+                    </div>
+                    <button id="btn-apply-config" class="btn btn-primary btn-wide">Apply Configuration</button>
+                </section>
+
                 <section class="control-panel">
                     <h3>Simulation Controls</h3>
                     <div class="control-buttons">

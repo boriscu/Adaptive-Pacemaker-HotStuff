@@ -125,5 +125,32 @@ const NetworkGraph = {
                 }, 500);
             }
         }
+    },
+    
+    updateNodeCount(numReplicas) {
+        this.cy.elements().remove();
+        
+        const elements = [];
+        
+        for (let i = 0; i < numReplicas; i++) {
+            elements.push({
+                data: { id: `r${i}`, label: `R${i}` }
+            });
+        }
+        
+        for (let i = 0; i < numReplicas; i++) {
+            for (let j = i + 1; j < numReplicas; j++) {
+                elements.push({
+                    data: { 
+                        id: `e${i}-${j}`, 
+                        source: `r${i}`, 
+                        target: `r${j}` 
+                    }
+                });
+            }
+        }
+        
+        this.cy.add(elements);
+        this.cy.layout({ name: 'circle', padding: 50 }).run();
     }
 };

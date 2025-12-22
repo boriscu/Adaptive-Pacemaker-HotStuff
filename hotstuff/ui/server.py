@@ -1,0 +1,112 @@
+from flask import Flask, render_template, jsonify, request
+import threading
+import time
+from hotstuff.simulation.environment import Environment
+from hotstuff.simulation.engine import SimulationEngine
+from hotstuff.metrics.collector import collector
+from hotstuff.config import config, ProtocolMode, PacemakerMode
+import logging
+
+# Simple Flask App
+app = Flask(__name__)
+
+# Global Environment Wrapper
+# In a real app we might want to reset this per session or have a singleton manager
+class SimulationManager:
+    def __init__(self):
+        self.env = Environment()
+        self.running = False
+        self.started = False
+        self.thread = None
+        self.max_time = 1000.0
+
+    def start_simulation(self):
+        if self.running: 
+            return
+            
+        if not self.started:
+            self.env.start()
+            self.started = True
+            
+        self.running = True
+        self.thread = threading.Thread(target=self._run_loop)
+        self.thread.start()
+
+    def _run_loop(self):
+        # We need a custom run mechanism to allow pause/resume or stepping?
+        # SimulationEngine.run blocks.
+        # So we run it in chunks or we rely on engine.stop()
+        
+        # NOTE: Engine.run is fast for 1000 steps. 
+        # For visualization we might want to slow it down OR we run it fully and visualize the trace.
+        # But Requirement says "UI to visualize execution" which implies realtime or step-by-step.
+        
+        # Let's modify logic: We run small chunks (steps).
+        while self.running and self.env.engine.current_time < self.max_time:
+            self.env.engine.run(max_time=self.env.engine.current_time + 1.0) # Run 1 sec virtual time
+            time.sleep(0.5) # Slow down for UI to catch up
+
+    def stop_simulation(self):
+        self.running = False
+        self.env.engine.stop()
+        if self.thread:
+            self.thread.join()
+
+    def reset_simulation(self):
+        self.stop_simulation()
+        collector.reset()
+        self.env = Environment()
+        self.started = False
+
+sim_manager = SimulationManager()
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/api/status')
+def get_status():
+    """Returns current simulation state."""
+    # Collect state from replicas
+    replicas_state = {}
+    for rid, harness in sim_manager.env.replicas.items():
+        r = harness.replica
+        replicas_state[rid] = {
+            "view": r.view,
+            "height": r.executed_up_to_height,
+            "commits": len(r.committed_blocks),
+            "last_commit": r.committed_blocks[-1].hash[:8] if r.committed_blocks else "None" 
+        }
+
+    return jsonify({
+        "time": sim_manager.env.engine.current_time,
+        "running": sim_manager.running,
+        "metrics": collector.get_summary(),
+        "replicas": replicas_state
+    })
+
+@app.route('/api/control', methods=['POST'])
+def control():
+    """Start/Stop/Reset"""
+    action = request.json.get('action')
+    if action == 'start':
+        sim_manager.start_simulation()
+    elif action == 'stop':
+        sim_manager.stop_simulation()
+    elif action == 'reset':
+        sim_manager.reset_simulation()
+    return jsonify({"success": True})
+
+@app.route('/api/config', methods=['POST'])
+def update_config():
+    """Update global config."""
+    # Needs restart to take effect
+    data = request.json
+    if 'N' in data: config.N = int(data['N'])
+    if 'F' in data: config.F = int(data['F'])
+    if 'PROTOCOL' in data: config.PROTOCOL = ProtocolMode(data['PROTOCOL'])
+    return jsonify({"success": True, "message": "Changes apply on Reset"})
+
+if __name__ == '__main__':
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    app.run(debug=True, port=5000)

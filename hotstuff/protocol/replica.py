@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Callable
 import collections
 
 from hotstuff.network.interfaces import Network
@@ -6,7 +6,9 @@ from hotstuff.pacemaker.interface import Pacemaker
 from hotstuff.config import config, ProtocolMode
 from hotstuff.protocol.interfaces import ReplicaInterface
 from hotstuff.logger import logger
-from hotstuff.domain.models import Block, Msg, MsgType, QC, VoteMsg, PartialSignature, QCSignature, Command
+from hotstuff.domain.models import Block, QC, PartialSignature, QCSignature, Command, Msg, VoteMsg   
+from hotstuff.domain.enums import MsgType
+from hotstuff.metrics.collector import collector
 
 class Replica(ReplicaInterface):
     """
@@ -19,10 +21,11 @@ class Replica(ReplicaInterface):
     Adheres to the safeNode predicates and commit rules defined in the paper.
     """
 
-    def __init__(self, id: int, network: Network, pacemaker: Pacemaker):
+    def __init__(self, id: int, network: Network, pacemaker: Pacemaker, timer_scheduler: Optional[Callable] = None):
         self.id = id
         self.network = network
         self.pacemaker = pacemaker
+        self.timer_scheduler = timer_scheduler
         
         # Block Storage (Simulated Tree)
         # block_hash -> Block
@@ -81,7 +84,7 @@ class Replica(ReplicaInterface):
         self.generic_qc = genesis_qc
         self.prepare_qc = genesis_qc
         
-    def _create_leaf(self, parent_hash: str, cmd: Command) -> Block:
+    def _create_leaf(self, parent_hash: str, cmd: Command, view_number: int = None) -> Block:
         """
         Algorithm 1: createLeaf(parent, cmd)
         Creates a new block extending the parent.
@@ -92,7 +95,7 @@ class Replica(ReplicaInterface):
         return Block(
             parent_hash=parent_hash,
             cmd=cmd,
-            view=self.view,
+            view=view_number if view_number is not None else self.view,
             height=height,
             justify=self.generic_qc if config.PROTOCOL == ProtocolMode.CHAINED else self.prepare_qc # Context dependent
         )
@@ -157,6 +160,11 @@ class Replica(ReplicaInterface):
         
         self.network.send_msg(msg, leader_id)
 
+        # Schedule Timeout for this view
+        if self.timer_scheduler:
+            duration = self.pacemaker.get_timeout_duration()
+            self.timer_scheduler(duration, self.on_timeout, self.view)
+
     def on_receive_msg(self, msg: Msg):
         """
         Dispatches message to appropriate handler based on type and protocol.
@@ -215,7 +223,7 @@ class Replica(ReplicaInterface):
         if config.PROTOCOL == ProtocolMode.CHAINED:
             # Chained HotStuff Proposal
             # curProposal = createLeaf(genericQC.node, cmd, genericQC)
-            proposal = self._create_leaf(high_qc.node_hash, cmd)
+            proposal = self._create_leaf(high_qc.node_hash, cmd, view_number=msg.view_number)
             # Store it
             self.blocks[proposal.hash] = proposal
             
@@ -370,6 +378,10 @@ class Replica(ReplicaInterface):
         
         # Notify Pacemaker
         self.pacemaker.on_commit_success(latency=0.1) # Mock latency
+        
+        # Record Metrics
+        # In a real sim we'd track when this block was proposed vs now
+        collector.record_commit(timestamp=0, num_blocks=1, latency=0.1)
 
     def _handle_basic_phase(self, msg: Msg, phase: MsgType):
         """
@@ -431,3 +443,13 @@ class Replica(ReplicaInterface):
 
     def get_commit_history(self) -> List[Block]:
         return self.committed_blocks
+
+    def on_timeout(self, view: int):
+        """
+        Triggered when view timer expires.
+        If we are still in the same view, we trigger NEXT_VIEW.
+        """
+        if self.view == view:
+            logger.debug(f"Replica {self.id} TIMEOUT in view {view}")
+            self.pacemaker.on_timeout()
+            self.on_next_view()

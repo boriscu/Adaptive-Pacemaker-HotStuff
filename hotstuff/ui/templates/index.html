@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HotStuff Simulation</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
+        .dashboard { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1 { margin-top: 0; }
+        .controls button { padding: 10px 15px; margin-right: 10px; cursor: pointer; }
+        .metrics { margin-top: 20px; }
+        .replica-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 20px; }
+        .replica-card { border: 1px solid #ccc; padding: 10px; border-radius: 4px; background: #fff; }
+        .replica-card.leader { border-color: gold; border-width: 2px; }
+        .stat-val { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>HotStuff Consensus Simulation</h1>
+
+    <div class="dashboard">
+        <div class="panel">
+            <h2>Controls</h2>
+            <div class="controls">
+                <button onclick="control('start')" style="background: #e1ffe1;">Start</button>
+                <button onclick="control('stop')" style="background: #ffe1e1;">Stop</button>
+                <button onclick="control('reset')">Reset</button>
+            </div>
+            
+            <h3>Configuration</h3>
+            <label>N: <input type="number" id="confN" value="4" style="width: 50px;"></label>
+            <label>F: <input type="number" id="confF" value="1" style="width: 50px;"></label>
+            <label>Protocol: 
+                <select id="confProto">
+                    <option value="CHAINED">Chained</option>
+                    <option value="BASIC">Basic</option>
+                </select>
+            </label>
+            <button onclick="updateConfig()">Apply</button>
+
+            <div class="metrics">
+                <h3>Metrics</h3>
+                <p>Time: <span id="simTime" class="stat-val">0.0</span></p>
+                <p>Committed Blocks: <span id="totalCommitted" class="stat-val">0</span></p>
+                <p>Avg Latency: <span id="avgLatency" class="stat-val">0.0</span> ms</p>
+                <p>View Changes: <span id="viewChanges" class="stat-val">0</span></p>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Replicas State</h2>
+            <div id="replicaGrid" class="replica-grid">
+                <!-- Replicas populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function control(action) {
+            fetch('/api/control', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: action})
+            });
+        }
+
+        function updateConfig() {
+            fetch('/api/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    N: document.getElementById('confN').value,
+                    F: document.getElementById('confF').value,
+                    PROTOCOL: document.getElementById('confProto').value
+                })
+            }).then(() => control('reset'));
+        }
+
+        function updateDashboard() {
+            fetch('/api/status')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('simTime').innerText = data.time.toFixed(2);
+                document.getElementById('totalCommitted').innerText = data.metrics.total_committed;
+                document.getElementById('avgLatency').innerText = data.metrics.avg_latency.toFixed(4);
+                document.getElementById('viewChanges').innerText = data.metrics.view_changes;
+
+                const grid = document.getElementById('replicaGrid');
+                grid.innerHTML = '';
+                
+                Object.keys(data.replicas).forEach(rid => {
+                    const r = data.replicas[rid];
+                    const div = document.createElement('div');
+                    div.className = 'replica-card';
+                    div.innerHTML = `
+                        <strong>Replica ${rid}</strong><br>
+                        View: ${r.view}<br>
+                        Height: ${r.height}<br>
+                        Last Hash: ${r.last_commit}
+                    `;
+                    grid.appendChild(div);
+                });
+            });
+        }
+
+        setInterval(updateDashboard, 500);
+    </script>
+
+</body>
+</html>

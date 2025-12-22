@@ -1,7 +1,7 @@
 import logging
 import sys
 
-def setup_logging(name: str = "hotstuff", level: int = logging.INFO) -> logging.Logger:
+def setup_logging(name: str = "hotstuff", level: int = logging.DEBUG) -> logging.Logger:
     """
     Configures and returns a structured logger.
     """

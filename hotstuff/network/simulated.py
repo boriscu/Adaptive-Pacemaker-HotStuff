@@ -1,5 +1,5 @@
 import random
-from typing import Callable
+from typing import Callable, Any
 
 from hotstuff.network.interfaces import Network
 from hotstuff.domain.models import Msg, VoteMsg

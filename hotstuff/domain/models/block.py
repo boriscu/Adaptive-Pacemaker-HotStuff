@@ -1,8 +1,9 @@
 from typing import Optional
 import hashlib
 from pydantic import BaseModel
-from .command import Command
-from .qc import QC
+
+from hotstuff.domain.models.command import Command
+from hotstuff.domain.models.qc import QC
 
 class Block(BaseModel):
     """

@@ -2,16 +2,12 @@ from flask import Flask, render_template, jsonify, request
 import threading
 import time
 from hotstuff.simulation.environment import Environment
-from hotstuff.simulation.engine import SimulationEngine
 from hotstuff.metrics.collector import collector
-from hotstuff.config import config, ProtocolMode, PacemakerMode
+from hotstuff.config import config, ProtocolMode
 import logging
 
-# Simple Flask App
 app = Flask(__name__)
 
-# Global Environment Wrapper
-# In a real app we might want to reset this per session or have a singleton manager
 class SimulationManager:
     def __init__(self):
         self.env = Environment()
@@ -19,7 +15,7 @@ class SimulationManager:
         self.started = False
         self.thread = None
         self.max_time = 1000.0
-        self.step_delay = 2.5 # Default 2.5s/step (Slowed down from 0.5)
+        self.step_delay = 2.5 
 
     def start_simulation(self):
         if self.running: 
@@ -34,15 +30,6 @@ class SimulationManager:
         self.thread.start()
 
     def _run_loop(self):
-        # We need a custom run mechanism to allow pause/resume or stepping?
-        # SimulationEngine.run blocks.
-        # So we run it in chunks or we rely on engine.stop()
-        
-        # NOTE: Engine.run is fast for 1000 steps. 
-        # For visualization we might want to slow it down OR we run it fully and visualize the trace.
-        # But Requirement says "UI to visualize execution" which implies realtime or step-by-step.
-        
-        # Let's modify logic: We run small chunks (steps).
         while self.running and self.env.engine.current_time < self.max_time:
             self.env.engine.run(max_time=self.env.engine.current_time + 1.0) # Run 1 sec virtual time
             time.sleep(self.step_delay) # Slow down for UI to catch up

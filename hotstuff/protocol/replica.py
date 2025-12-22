@@ -44,6 +44,9 @@ class Replica(ReplicaInterface):
         self.precommit_qc: Optional[QC] = None # Basic HotStuff specific
         self.commit_qc: Optional[QC] = None # Basic HotStuff specific
         
+        # Validation/Progress Tracking
+        self.current_phase = "NEW_VIEW"
+        
         # Chained HotStuff specific (Generic QC)
         self.generic_qc: Optional[QC] = None
         
@@ -85,6 +88,7 @@ class Replica(ReplicaInterface):
         - Advance pacemaker view.
         """
         self.view = self.pacemaker.advance_view()
+        self.current_phase = "NEW_VIEW"
         leader_id = self.pacemaker.get_leader(self.view)
         
         # Determine strict HighQC to send
@@ -134,6 +138,7 @@ class Replica(ReplicaInterface):
         if self.pacemaker.get_leader(msg.view_number) != self.id:
             return
 
+        self.current_phase = "PROPOSING"
         # NEW-VIEW Collection Logic (Simplified for brevity)
         
         self._update_high_qc(msg.justify)
@@ -178,12 +183,14 @@ class Replica(ReplicaInterface):
         if not proposal:
             return
 
+        self.current_phase = "VALIDATING"
         self.block_tree.add_block(proposal)
         
         # Safety Check
         safe = self._safe_node(proposal, justify_qc)
         
         if safe:
+            self.current_phase = "VOTED"
             # Send Vote
             partial_sig = PartialSignature(
                 replica_id=self.id,
@@ -264,6 +271,7 @@ class Replica(ReplicaInterface):
         """
         Parameters for Basic HotStuff phases.
         """
+        self.current_phase = phase.name
         pass
 
     def _update_high_qc(self, qc: QC):
@@ -284,6 +292,7 @@ class Replica(ReplicaInterface):
         """
         Leader logic: Collect votes, form QC.
         """
+        self.current_phase = "AGGREGATING"
         qc = self.vote_aggregator.add_vote(vote)
         
         if qc:

@@ -19,6 +19,8 @@ class SimulatedNetwork(Network):
         """
         self.scheduler_callback = scheduler_callback
         self.total_replicas = config.N
+        self.recent_messages = [] # List[Dict] for visualization
+
         
     def _calculate_latency(self) -> float:
         """Returns deterministic or random latency based on config."""
@@ -31,6 +33,15 @@ class SimulatedNetwork(Network):
         if self._should_drop():
             return
         latency = self._calculate_latency()
+        
+        # Track for visualizer
+        self.recent_messages.append({
+            "src": msg.sender,
+            "dst": destination,
+            "type": msg.type.name,
+            "latency": latency
+        })
+        
         self.scheduler_callback(latency, msg, destination)
 
     def broadcast_msg(self, msg: Msg):
@@ -42,6 +53,16 @@ class SimulatedNetwork(Network):
         if self._should_drop():
             return
         latency = self._calculate_latency()
+
+        # Track for visualizer
+        self.recent_messages.append({
+            "src": vote.sender,
+            "dst": destination,
+            "type": "VOTE", # Simplified type
+            "sub_type": vote.type.name,
+            "latency": latency
+        })
+
         self.scheduler_callback(latency, vote, destination)
 
     def broadcast_vote(self, vote: VoteMsg):

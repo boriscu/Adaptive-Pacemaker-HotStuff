@@ -99,35 +99,97 @@
             });
         }
 
-        function drawTopology(replicas) {
+        // Particle System
+        const particles = [];
+
+        function updateParticles(width, height) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.progress += 0.02; // Speed of animation (frames)
+                
+                if (p.progress >= 1.0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawParticles(ctx, nodesMap) {
+            particles.forEach(p => {
+                const srcNode = nodesMap[p.src];
+                const dstNode = nodesMap[p.dst];
+                
+                if (!srcNode || !dstNode) return;
+                
+                const x = srcNode.x + (dstNode.x - srcNode.x) * p.progress;
+                const y = srcNode.y + (dstNode.y - srcNode.y) * p.progress;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 6, 0, 2 * Math.PI);
+                
+                // Color by type
+                if (p.type === 'NEW_VIEW') ctx.fillStyle = 'blue';
+                else if (p.type === 'PREPARE') ctx.fillStyle = 'yellow';
+                else if (p.type === 'PRE_COMMIT') ctx.fillStyle = 'orange';
+                else if (p.type === 'COMMIT') ctx.fillStyle = 'green';
+                else if (p.type === 'DECIDE') ctx.fillStyle = 'purple';
+                else if (p.type === 'VOTE') ctx.fillStyle = '#00CED1'; // DarkTurquoise
+                else ctx.fillStyle = 'black';
+                
+                ctx.fill();
+            });
+        }
+
+        // We need an animation loop independent of the 500ms status fetch
+        // Status fetch adds particles, animation loop draws them.
+        
+        let currentReplicas = {}; 
+        
+        function animate() {
             const canvas = document.getElementById('topoCanvas');
             const ctx = canvas.getContext('2d');
             const width = canvas.width;
             const height = canvas.height;
-            const cx = width / 2;
-            const cy = height / 2;
             
-            // Clear
-            ctx.clearRect(0, 0, width, height);
+            // Re-draw everything (topology + particles)
+            drawFrame(ctx, width, height);
             
-            const ids = Object.keys(replicas).sort();
-            const N = ids.length;
-            const radius = Math.min(width, height) / 2 - 80; // Leave margin for labels
-            
-            const nodes = [];
-            
-            // Calculate positions
-            ids.forEach((rid, i) => {
-                const angle = (2 * Math.PI * i) / N - Math.PI / 2; // start at top
-                nodes.push({
-                    id: rid,
-                    x: cx + radius * Math.cos(angle),
-                    y: cy + radius * Math.sin(angle),
-                    data: replicas[rid]
-                });
-            });
-            
-            // Draw edges (Fully connected graph)
+            updateParticles(width, height);
+            requestAnimationFrame(animate);
+        }
+        
+        // Start animation loop
+        requestAnimationFrame(animate);
+
+        function drawFrame(ctx, width, height) {
+             const cx = width / 2;
+             const cy = height / 2;
+             
+             // Clear
+             ctx.clearRect(0, 0, width, height);
+             
+             const ids = Object.keys(currentReplicas).sort();
+             const N = ids.length;
+             
+             if (N === 0) return;
+
+             const radius = Math.min(width, height) / 2 - 80;
+             const nodes = [];
+             const nodesMap = {};
+             
+             // Calculate positions
+             ids.forEach((rid, i) => {
+                 const angle = (2 * Math.PI * i) / N - Math.PI / 2;
+                 const n = {
+                     id: rid,
+                     x: cx + radius * Math.cos(angle),
+                     y: cy + radius * Math.sin(angle),
+                     data: currentReplicas[rid]
+                 };
+                 nodes.push(n);
+                 nodesMap[rid] = n;
+             });
+
+            // Draw edges
             ctx.strokeStyle = '#e0e0e0';
             ctx.lineWidth = 1;
             for (let i = 0; i < N; i++) {
@@ -138,33 +200,33 @@
                     ctx.stroke();
                 }
             }
-            
+
+            // Draw Particles
+            drawParticles(ctx, nodesMap);
+
             // Draw nodes
             nodes.forEach(node => {
                 const r = node.data;
-                
                 // Circle
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, 45, 0, 2 * Math.PI);
                 ctx.fillStyle = '#fff';
                 
-                // Color coding
-                if (r.is_faulty) {
-                    ctx.fillStyle = '#ffebee'; // Light red background
-                    ctx.strokeStyle = '#d32f2f'; // Red border
+                 if (r.is_faulty) {
+                    ctx.fillStyle = '#ffebee';
+                    ctx.strokeStyle = '#d32f2f';
                 } else if (r.is_leader) {
-                    ctx.fillStyle = '#fff8e1'; // Light yellow background
-                    ctx.strokeStyle = '#ffa000'; // Gold border
+                    ctx.fillStyle = '#fff8e1'; 
+                    ctx.strokeStyle = '#ffa000';
                 } else {
                     ctx.fillStyle = '#fff';
                     ctx.strokeStyle = '#666';
                 }
                 
                 ctx.fill();
-                ctx.lineWidth = r.is_leader ? 4 : 2; // Thicker border for leader
+                ctx.lineWidth = r.is_leader ? 4 : 2;
                 ctx.stroke();
                 
-                // Decoration (Crown for leader, X for faulty)
                 if (r.is_leader) {
                     ctx.font = '20px serif';
                     ctx.fillText('👑', node.x, node.y - 35);
@@ -173,24 +235,29 @@
                      ctx.fillText('💀', node.x, node.y - 35);
                 }
                 
-                // Text ID
                 ctx.fillStyle = '#000';
                 ctx.font = 'bold 16px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(`R${node.id}`, node.x, node.y - 10);
 
-                // Status Text below
                 ctx.font = '12px sans-serif';
                 ctx.fillText(`View: ${r.view}`, node.x, node.y + 10);
-                ctx.fillText(`Height: ${r.height}`, node.x, node.y + 24);
                 
-                // Last Commit Hash
+                // Show Phase instead of Height (or both)
+                ctx.fillStyle = '#0055ff';
+                ctx.fillText(r.phase || "", node.x, node.y + 24);
+
                 if (r.last_commit) {
                      ctx.fillStyle = '#444';
                      ctx.fillText(r.last_commit.substring(0,6), node.x, node.y + 38);
                 }
             });
+        }
+        
+        // No longer called directly for drawing, just updates state
+        function drawTopology(replicas) {
+             currentReplicas = replicas;
         }
 
         function updateDashboard() {
@@ -202,7 +269,20 @@
                 document.getElementById('avgLatency').innerText = data.metrics.avg_latency.toFixed(4);
                 document.getElementById('viewChanges').innerText = data.metrics.view_changes;
 
+                // Update Replicas Data
                 drawTopology(data.replicas);
+                
+                // Add new messages to particle system
+                if (data.messages) {
+                    data.messages.forEach(m => {
+                        particles.push({
+                            src: m.src,
+                            dst: m.dst,
+                            type: m.type,
+                            progress: 0.0
+                        });
+                    });
+                }
             });
         }
 

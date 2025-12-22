@@ -66,14 +66,23 @@ def get_status():
             "commits": len(r.committed_blocks),
             "last_commit": r.committed_blocks[-1].hash[:8] if r.committed_blocks else "None",
             "is_leader": (leader_id == r.id),
-            "is_faulty": r.is_faulty
+            "is_faulty": r.is_faulty,
+            "phase": r.current_phase
         }
+    
+    # Collect generic messages from network
+    # We consume them so they are only sent once
+    msgs = []
+    if hasattr(sim_manager.env.network, 'recent_messages'):
+        msgs = list(sim_manager.env.network.recent_messages)
+        sim_manager.env.network.recent_messages.clear()
 
     return jsonify({
         "time": sim_manager.env.engine.current_time,
         "running": sim_manager.running,
         "metrics": collector.get_summary(),
-        "replicas": replicas_state
+        "replicas": replicas_state,
+        "messages": msgs
     })
 
 @app.route('/api/control', methods=['POST'])

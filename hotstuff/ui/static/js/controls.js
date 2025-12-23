@@ -13,19 +13,18 @@ const Controls = {
         
         const updateQuorumInfo = () => {
             const n = parseInt(replicasInput.value) || 4;
+            const f = parseInt(faultyInput.value) || 0;
+            const quorum = n - f;
             const maxF = Math.floor((n - 1) / 3);
-            const quorum = 2 * maxF + 1;
             
             document.getElementById('quorum-size').textContent = quorum;
             document.getElementById('max-faulty').textContent = maxF;
             
-            faultyInput.max = maxF;
-            if (parseInt(faultyInput.value) > maxF) {
-                faultyInput.value = maxF;
-            }
+            faultyInput.max = n - 1;
         };
         
         replicasInput.addEventListener('input', updateQuorumInfo);
+        faultyInput.addEventListener('input', updateQuorumInfo);
         
         applyBtn.addEventListener('click', async () => {
             if (App.isRunning) {
@@ -110,6 +109,8 @@ const Controls = {
         });
         
         const speedSlider = document.getElementById('speed-slider');
+        const autoRunBtn = document.getElementById('btn-auto-run');
+        
         speedSlider.addEventListener('input', (e) => {
             document.getElementById('speed-value').textContent = e.target.value;
         });
@@ -117,6 +118,20 @@ const Controls = {
         speedSlider.addEventListener('change', (e) => {
             if (App.autoStepInterval) {
                 App.startAutoStep(parseInt(e.target.value));
+            }
+        });
+        
+        autoRunBtn.addEventListener('click', () => {
+            if (App.autoStepInterval) {
+                App.stopAutoStep();
+                autoRunBtn.textContent = '▶ Auto';
+                autoRunBtn.classList.remove('btn-primary');
+                autoRunBtn.classList.add('btn-secondary');
+            } else {
+                App.startAutoStep(parseInt(speedSlider.value));
+                autoRunBtn.textContent = '⏹ Stop';
+                autoRunBtn.classList.remove('btn-secondary');
+                autoRunBtn.classList.add('btn-primary');
             }
         });
     },

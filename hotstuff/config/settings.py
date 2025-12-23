@@ -39,9 +39,9 @@ class Settings(BaseSettings):
     
     num_replicas: int = Field(
         default=DEFAULT_NUM_REPLICAS,
-        ge=MIN_REPLICAS,
+        ge=1,
         le=MAX_REPLICAS,
-        description="Total number of replicas (n). Must satisfy n = 3f + 1."
+        description="Total number of replicas (n)."
     )
     num_faulty: int = Field(
         default=DEFAULT_NUM_FAULTY,
@@ -123,13 +123,7 @@ class Settings(BaseSettings):
         "extra": "ignore"
     }
     
-    @field_validator("num_replicas")
-    @classmethod
-    def validate_num_replicas(cls, value: int) -> int:
-        """Validate that num_replicas satisfies BFT requirements."""
-        if (value - 1) % 3 != 0:
-            raise ValueError(f"num_replicas must be 3f+1 for some integer f, got {value}")
-        return value
+    # Removed 3f+1 validation to allow flexible simulation scenarios
     
     @property
     def quorum_size(self) -> int:

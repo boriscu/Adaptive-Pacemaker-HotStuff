@@ -100,14 +100,13 @@ class Server:
             except KeyError:
                 pacemaker_type = PacemakerType.BASELINE
             
-            max_faulty = (num_replicas - 1) // 3
-            if num_faulty > max_faulty:
+            if num_faulty >= num_replicas:
                 return jsonify({
-                    "error": f"num_faulty ({num_faulty}) exceeds max ({max_faulty}) for {num_replicas} replicas"
+                    "error": f"num_faulty ({num_faulty}) must be less than num_replicas ({num_replicas})"
                 }), 400
             
-            if num_replicas < 4:
-                return jsonify({"error": "num_replicas must be at least 4"}), 400
+            if num_replicas < 1:
+                return jsonify({"error": "num_replicas must be at least 1"}), 400
             
             new_settings = Settings(
                 num_replicas=num_replicas,

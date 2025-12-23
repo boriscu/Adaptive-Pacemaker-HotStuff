@@ -172,8 +172,12 @@ def export_json(results: List[dict], filepath: str) -> None:
     print(f"   Results exported to: {path}")
 
 
-def generate_plots(aggregated: List[AggregatedResult], output_dir: str) -> None:
-    """Generate plots from aggregated results."""
+def generate_plots(raw_results: List[RunResult], aggregated: List[AggregatedResult], output_dir: str) -> None:
+    """
+    Generate plots from results.
+    
+    Handle single-configuration runs (show variance) and multi-configuration sweeps.
+    """
     try:
         import matplotlib.pyplot as plt
     except ImportError:
@@ -183,69 +187,115 @@ def generate_plots(aggregated: List[AggregatedResult], output_dir: str) -> None:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
-    baseline_results = [r for r in aggregated if r.config.get("pacemaker_type") == "baseline"]
-    adaptive_results = [r for r in aggregated if r.config.get("pacemaker_type") == "adaptive"]
+    unique_configs = len(aggregated)
     
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    if baseline_results:
-        replicas = [r.config["num_replicas"] for r in baseline_results]
-        throughput = [r.throughput_mean for r in baseline_results]
-        ax.plot(replicas, throughput, 'b-o', label='Baseline')
-    
-    if adaptive_results:
-        replicas = [r.config["num_replicas"] for r in adaptive_results]
-        throughput = [r.throughput_mean for r in adaptive_results]
-        ax.plot(replicas, throughput, 'r-s', label='Adaptive')
-    
-    ax.set_xlabel('Number of Replicas')
-    ax.set_ylabel('Throughput (blocks/s)')
-    ax.set_title('Throughput vs Replica Count')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    
-    plt.savefig(output_path / 'throughput.png', dpi=150, bbox_inches='tight')
-    plt.close()
-    
-    # Plot 2: Latency by replica count
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    if baseline_results:
-        replicas = [r.config["num_replicas"] for r in baseline_results]
-        latency = [r.latency_p95_mean for r in baseline_results]
-        ax.plot(replicas, latency, 'b-o', label='Baseline')
-    
-    if adaptive_results:
-        replicas = [r.config["num_replicas"] for r in adaptive_results]
-        latency = [r.latency_p95_mean for r in adaptive_results]
-        ax.plot(replicas, latency, 'r-s', label='Adaptive')
-    
-    ax.set_xlabel('Number of Replicas')
-    ax.set_ylabel('P95 Latency (ms)')
-    ax.set_title('P95 Latency vs Replica Count')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    
-    plt.savefig(output_path / 'latency.png', dpi=150, bbox_inches='tight')
-    plt.close()
-    
-    # Plot 3: Success rate
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    configs = [f"n={r.config['num_replicas']},f={r.config['num_faulty']}" for r in aggregated]
-    success_rates = [r.success_rate * 100 for r in aggregated]
-    colors = ['green' if s == 100 else 'orange' if s > 50 else 'red' for s in success_rates]
-    
-    ax.bar(range(len(configs)), success_rates, color=colors)
-    ax.set_xticks(range(len(configs)))
-    ax.set_xticklabels(configs, rotation=45, ha='right')
-    ax.set_ylabel('Success Rate (%)')
-    ax.set_title('Success Rate by Configuration')
-    ax.set_ylim(0, 105)
-    ax.axhline(y=100, color='gray', linestyle='--', alpha=0.5)
-    
-    plt.savefig(output_path / 'success_rate.png', dpi=150, bbox_inches='tight')
-    plt.close()
+    if unique_configs == 1:
+        print("   Generating single-config plots (variance across runs)...")
+        
+        runs = [r.run_index for r in raw_results]
+        throughputs = [r.throughput for r in raw_results]
+        latencies = [r.latency_avg_ms for r in raw_results]
+        
+        # Plot 1: Throughput per Run
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.bar(runs, throughputs, color='skyblue')
+        ax.set_xlabel('Run Index')
+        ax.set_ylabel('Throughput (blocks/s)')
+        ax.set_title('Throughput Variation Across Runs')
+        ax.set_xticks(runs)
+        ax.grid(axis='y', alpha=0.3)
+        plt.savefig(output_path / 'run_throughput.png', dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        # Plot 2: Latency per Run
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.bar(runs, latencies, color='lightcoral')
+        ax.set_xlabel('Run Index')
+        ax.set_ylabel('Avg Latency (ms)')
+        ax.set_title('Latency Variation Across Runs')
+        ax.set_xticks(runs)
+        ax.grid(axis='y', alpha=0.3)
+        plt.savefig(output_path / 'run_latency.png', dpi=150, bbox_inches='tight')
+        plt.close()
+        
+    else:
+        # MULTI CONFIGURATION: Plot sweeps
+        print("   Generating multi-config plots (parameter sweep)...")
+        
+        # Determine varying parameter
+        replicas = {r.config["num_replicas"] for r in aggregated}
+        faulty = {r.config["num_faulty"] for r in aggregated}
+        
+        x_param = "num_replicas"
+        x_label = "Number of Replicas"
+        
+        if len(replicas) == 1 and len(faulty) > 1:
+            x_param = "num_faulty"
+            x_label = "Number of Faulty Nodes"
+        
+        # Group by pacemaker type
+        pacemakers = {r.config.get("pacemaker_type") for r in aggregated}
+        
+        # Plot 1: Throughput
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        for pm in pacemakers:
+            pm_results = [r for r in aggregated if r.config.get("pacemaker_type") == pm]
+            # Sort by X param
+            pm_results.sort(key=lambda x: x.config.get(x_param))
+            
+            x_vals = [r.config.get(x_param) for r in pm_results]
+            y_vals = [r.throughput_mean for r in pm_results]
+            
+            style = 'b-o' if pm == 'baseline' else 'r-s'
+            ax.plot(x_vals, y_vals, style, label=pm.capitalize())
+        
+        ax.set_xlabel(x_label)
+        ax.set_ylabel('Throughput (blocks/s)')
+        ax.set_title(f'Throughput vs {x_label}')
+        if len(pacemakers) > 1:
+            ax.legend()
+        ax.grid(True, alpha=0.3)
+        plt.savefig(output_path / 'throughput.png', dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        # Plot 2: Latency
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        for pm in pacemakers:
+            pm_results = [r for r in aggregated if r.config.get("pacemaker_type") == pm]
+            pm_results.sort(key=lambda x: x.config.get(x_param))
+            
+            x_vals = [r.config.get(x_param) for r in pm_results]
+            y_vals = [r.latency_p95_mean for r in pm_results]
+            
+            style = 'b-o' if pm == 'baseline' else 'r-s'
+            ax.plot(x_vals, y_vals, style, label=pm.capitalize())
+        
+        ax.set_xlabel(x_label)
+        ax.set_ylabel('P95 Latency (ms)')
+        ax.set_title(f'P95 Latency vs {x_label}')
+        if len(pacemakers) > 1:
+            ax.legend()
+        ax.grid(True, alpha=0.3)
+        plt.savefig(output_path / 'latency.png', dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        # Plot 3: Success Rate (Bar Chart)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        configs = [f"n={r.config['num_replicas']},f={r.config['num_faulty']}" for r in aggregated]
+        success_rates = [r.success_rate * 100 for r in aggregated]
+        colors = ['green' if s == 100 else 'orange' if s > 50 else 'red' for s in success_rates]
+        
+        ax.bar(range(len(configs)), success_rates, color=colors)
+        ax.set_xticks(range(len(configs)))
+        ax.set_xticklabels(configs, rotation=45, ha='right')
+        ax.set_ylabel('Success Rate (%)')
+        ax.set_title('Success Rate by Configuration')
+        ax.set_ylim(0, 105)
+        
+        plt.savefig(output_path / 'success_rate.png', dpi=150, bbox_inches='tight')
+        plt.close()
     
     print(f"   Plots saved to: {output_path}")
 
@@ -288,7 +338,7 @@ def main():
     if args.plot:
         aggregated = runner.aggregate_results(results)
         plot_dir = Path(output_path).parent / "plots"
-        generate_plots(aggregated, str(plot_dir))
+        generate_plots(results, aggregated, str(plot_dir))
     
     # Print summary
     if not args.quiet:

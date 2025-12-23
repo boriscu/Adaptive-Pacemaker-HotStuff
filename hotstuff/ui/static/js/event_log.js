@@ -53,6 +53,8 @@ const EventLog = {
                 return `R${event.replica_id} proposed block in view ${event.view}`;
             case 'LOCK_UPDATE':
                 return `R${event.replica_id} locked at view ${event.locked_view}`;
+            case 'BYZANTINE_ACTION':
+                return `⚠ R${event.replica_id} [FAULTY]: ${event.action}`;
             default:
                 return JSON.stringify(event);
         }
@@ -66,7 +68,8 @@ const EventLog = {
             'COMMIT': 'commit',
             'TIMEOUT': 'timeout',
             'VIEW_CHANGE': 'view-change',
-            'PROPOSAL': 'proposal'
+            'PROPOSAL': 'proposal',
+            'BYZANTINE_ACTION': 'byzantine-action'
         };
         return typeMap[type] || '';
     },

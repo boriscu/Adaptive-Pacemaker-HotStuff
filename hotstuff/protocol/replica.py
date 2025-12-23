@@ -8,6 +8,7 @@ Delegates protocol logic to the appropriate handler (Basic or Chained).
 from typing import List
 from typing import Optional
 from typing import Dict
+import random
 
 from hotstuff.domain.types.view_number import ViewNumber
 from hotstuff.domain.types.replica_id import ReplicaId
@@ -166,6 +167,10 @@ class Replica:
         Start a new view.
         
         Sends new-view message to the leader of the new view.
+        Supports Faulty behavior.
+        - Silent: update internal state but don't send new-view message
+        - Random Drop: 50% chance to skip sending new-view message
+        - Crash: crash the replica (drop all messages)
         
         Args:
             view_number: The new view number to start.
@@ -176,6 +181,33 @@ class Replica:
         """
         if self._is_faulty and self._fault_type == FaultType.CRASH:
             return []
+        
+        if self._is_faulty and self._fault_type == FaultType.SILENT:
+            self._current_view = view_number
+            self._current_phase = PhaseType.NEW_VIEW
+            self._protocol_handler.clear_new_view_messages()
+            self._logger.warning(f"SILENT fault: not sending new-view for view {view_number}")
+            return [{
+                "type": "BYZANTINE_ACTION",
+                "replica_id": self._replica_id,
+                "action": "SILENT_NO_NEW_VIEW",
+                "view": view_number,
+                "timestamp": current_time
+            }]
+        
+        if self._is_faulty and self._fault_type == FaultType.RANDOM_DROP:
+            if random.random() < 0.5:
+                self._current_view = view_number
+                self._current_phase = PhaseType.NEW_VIEW
+                self._protocol_handler.clear_new_view_messages()
+                self._logger.warning(f"RANDOM_DROP: dropped new-view for view {view_number}")
+                return [{
+                    "type": "BYZANTINE_ACTION",
+                    "replica_id": self._replica_id,
+                    "action": "DROPPED_NEW_VIEW",
+                    "view": view_number,
+                    "timestamp": current_time
+                }]
         
         self._current_view = view_number
         self._current_phase = PhaseType.NEW_VIEW
@@ -222,6 +254,32 @@ class Replica:
         """
         if self._is_faulty and self._fault_type == FaultType.CRASH:
             return []
+        
+        # SILENT fault: update internal state from messages but don't vote
+        if self._is_faulty and self._fault_type == FaultType.SILENT:
+            if message.view_number < self._current_view:
+                return []
+            # Just log and return - no voting
+            self._logger.warning(f"SILENT fault: received {message.message_type.name} but not responding")
+            return [{
+                "type": "BYZANTINE_ACTION",
+                "replica_id": self._replica_id,
+                "action": f"SILENT_NO_VOTE_{message.message_type.name}",
+                "view": message.view_number,
+                "timestamp": current_time
+            }]
+        
+        # RANDOM_DROP fault: 50% chance to ignore message
+        if self._is_faulty and self._fault_type == FaultType.RANDOM_DROP:
+            if random.random() < 0.5:
+                self._logger.warning(f"RANDOM_DROP: dropped {message.message_type.name}")
+                return [{
+                    "type": "BYZANTINE_ACTION",
+                    "replica_id": self._replica_id,
+                    "action": f"DROPPED_{message.message_type.name}",
+                    "view": message.view_number,
+                    "timestamp": current_time
+                }]
         
         if message.view_number < self._current_view:
             self._logger.debug(f"Ignoring old message from view {message.view_number}")

@@ -414,7 +414,7 @@ body {
 .event-type.commit { color: var(--primary-color); }
 .event-type.timeout { color: var(--danger-color); }
 .event-type.view-change { color: var(--warning-color); }
-.event-type.proposal { color: #1abc9c; }
+.event-type.proposal { color: #1abc9c; }\r\n.event-type.byzantine-action { color: #ff4444; font-weight: bold; }
 
 .event-details {
     color: var(--text-secondary);

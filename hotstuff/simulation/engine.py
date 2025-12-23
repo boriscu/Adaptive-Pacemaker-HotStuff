@@ -87,6 +87,11 @@ class SimulationEngine:
         self._view_start_times: Dict[int, int] = {}
         
         self._logger = StructuredLogger.get_logger("engine")
+        
+        for i in range(settings.num_replicas - settings.num_faulty, settings.num_replicas):
+            self._replicas[i].inject_fault(FaultType.CRASH)
+            self._network.block_replica(ReplicaId(i))
+            self._logger.info(f"Replica {i} marked as faulty (CRASH)")
     
     def start(self) -> List[dict]:
         """
@@ -318,6 +323,11 @@ class SimulationEngine:
                 leader_scheduler=self._leader_scheduler
             )
             self._replicas[i] = replica
+        
+        # Re-inject faults into the last num_faulty replicas
+        for i in range(self._settings.num_replicas - self._settings.num_faulty, self._settings.num_replicas):
+            self._replicas[i].inject_fault(FaultType.CRASH)
+            self._network.block_replica(ReplicaId(i))
         
         self._current_view = ViewNumber(1)
         self._is_running = False

@@ -54,7 +54,6 @@ class BenchmarkRunner:
         Returns:
             RunResult with metrics from this run.
         """
-        # Convert config to Settings
         try:
             pacemaker_type = PacemakerType[config.pacemaker_type.upper()]
         except KeyError:
@@ -81,8 +80,10 @@ class BenchmarkRunner:
             events = engine.start()
             metrics.set_start_time(0)
             
-            scale_factor = 50 * (1 + config.num_faulty)
-            max_steps = config.max_views * config.num_replicas * scale_factor
+            base_scale = 100
+            fault_multiplier = 1 + config.num_faulty
+            scale_factor = base_scale * fault_multiplier
+            max_steps = config.max_views * config.num_replicas * config.num_replicas * scale_factor
             step_count = 0
             
             while step_count < max_steps:
@@ -91,7 +92,6 @@ class BenchmarkRunner:
                     break
                 step_count += 1
             
-            # Collect all events from engine history
             for event in engine.get_event_history():
                 metrics.record_event(event)
             
@@ -147,7 +147,6 @@ class BenchmarkRunner:
         
         for config in configs:
             for run_idx in range(benchmark_config.runs_per_config):
-                # Calculate seed for this run
                 seed = None
                 if benchmark_config.random_seed_base is not None:
                     seed = benchmark_config.random_seed_base + current_run

@@ -85,6 +85,8 @@ class SimulationEngine:
         self._is_paused: bool = False
         self._event_history: List[dict] = []
         self._view_start_times: Dict[int, int] = {}
+        self._view_timeout_votes: Dict[int, set] = {}
+        self._quorum_size = settings.quorum_size
         
         self._logger = StructuredLogger.get_logger("engine")
         for i in range(settings.num_replicas - settings.num_faulty, settings.num_replicas):
@@ -150,18 +152,28 @@ class SimulationEngine:
         if not self._is_running:
             return None
         
-        next_delivery_time = self._network.get_next_delivery_time()
-        next_scheduled_time = self._scheduler.peek_time()
-        
-        if next_delivery_time < 0 and next_scheduled_time is None:
-            return None
-        
-        if next_delivery_time >= 0:
-            if next_scheduled_time is None or next_delivery_time <= next_scheduled_time:
-                return self._process_message_delivery(next_delivery_time)
-        
-        if next_scheduled_time is not None:
-            return self._process_scheduled_event()
+        max_iterations = 100  
+        for _ in range(max_iterations):
+            next_delivery_time = self._network.get_next_delivery_time()
+            next_scheduled_time = self._scheduler.peek_time()
+            
+            if next_delivery_time < 0 and next_scheduled_time is None:
+                return None
+            
+            if next_delivery_time >= 0:
+                if next_scheduled_time is None or next_delivery_time <= next_scheduled_time:
+                    result = self._process_message_delivery(next_delivery_time)
+                    if result is not None:
+                        return result
+                    continue
+            
+            if next_scheduled_time is not None:
+                result = self._process_scheduled_event()
+                if result is not None:
+                    return result
+                continue
+            
+            break
         
         return None
     
@@ -214,7 +226,13 @@ class SimulationEngine:
         return None
     
     def _handle_timeout(self, timeout_event: dict) -> Optional[dict]:
-        """Handle a timeout event."""
+        """
+        Handle a timeout event - advance this replica to the next view.
+        
+        Each replica advances independently on timeout. This ensures proper
+        QC propagation - the new leader will collect new-view messages with
+        QCs and select the highest one to propose with.
+        """
         replica_id = timeout_event["replica_id"]
         view = timeout_event["view"]
         
@@ -255,12 +273,19 @@ class SimulationEngine:
     
     def _on_block_committed(self, replica_id: int, commit_event: dict) -> None:
         """
-        Handle a block commit - advance to next view (happy path).
+        Handle a block commit - advance this replica to next view.
         
-        When a block is committed, we immediately advance to the next view
-        instead of waiting for the pacemaker timeout.
+        When a block is committed, the committing replica advances to the 
+        next view. Other replicas will advance when they receive the Decide
+        message or when they timeout.
+        
+        Note: Synchronized view advancement is used for the timeout path,
+        not the commit path, to preserve proper commit ordering.
         """
         view = self._replicas[replica_id].current_view
+        
+        if view < self._current_view:
+            return
         
         if view in self._view_start_times:
             duration = self._clock.current_time - self._view_start_times[view]
@@ -307,6 +332,7 @@ class SimulationEngine:
         self._network.reset()
         self._event_history.clear()
         self._view_start_times.clear()
+        self._view_timeout_votes.clear()
         
         for pacemaker in self._pacemakers.values():
             pacemaker.reset()

@@ -76,7 +76,7 @@ class SafetyRules:
             )
             return True
         
-        self._logger.warning(
+        self._logger.debug(
             f"Unsafe: block {block.block_hash} does not extend locked block "
             f"and justify QC view not higher"
         )

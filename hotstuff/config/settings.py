@@ -128,12 +128,21 @@ class Settings(BaseSettings):
         "extra": "ignore"
     }
     
-    # Removed 3f+1 validation to allow flexible simulation scenarios
     
     @property
     def quorum_size(self) -> int:
-        """Calculate the quorum size (n - f = 2f + 1 for n = 3f + 1)."""
-        return self.num_replicas - self.num_faulty
+        """
+        Calculate the quorum size for BFT consensus.
+        
+        For n replicas tolerating f Byzantine faults, we need 2f+1 votes.
+        We use the maximum tolerable f value for the network size:
+        f_max = floor((n-1)/3), so quorum = 2*f_max + 1
+        
+        This ensures the protocol can make progress with n - f_max replicas
+        voting, while maintaining safety against up to f_max Byzantine faults.
+        """
+        f_max = (self.num_replicas - 1) // 3
+        return 2 * f_max + 1
     
     @property
     def max_faulty(self) -> int:

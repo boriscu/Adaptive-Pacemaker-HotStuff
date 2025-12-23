@@ -82,6 +82,7 @@ class BasicHotStuffHandler:
         
         self._new_view_messages: List[NewViewMessage] = []
         self._command_counter: int = 0
+        self._last_proposed_view: ViewNumber = ViewNumber(0)
     
     def handle_new_view(
         self,
@@ -112,7 +113,11 @@ class BasicHotStuffHandler:
             f"count: {len(self._new_view_messages)}/{self._quorum_size}"
         )
         
+        if current_view <= self._last_proposed_view:
+            return [], None, None
+        
         if len(self._new_view_messages) >= self._quorum_size:
+            self._last_proposed_view = current_view
             return self._propose_block(current_view, current_time)
         
         return [], None, None
@@ -219,7 +224,7 @@ class BasicHotStuffHandler:
         self._safety_rules.register_block(block)
         
         if not self._safety_rules.is_safe_node(block, message.high_qc, locked_qc):
-            self._logger.warning(f"Block {block.block_hash[:8]} is not safe, not voting")
+            self._logger.debug(f"Block {block.block_hash[:8]} is not safe, not voting")
             return [], block, last_voted_view, PhaseType.PREPARE
         
         if last_voted_view is not None and current_view <= last_voted_view:

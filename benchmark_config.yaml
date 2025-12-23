@@ -17,7 +17,7 @@ random_seed_base: 2024
 # Hypothesis: Throughput decreases and latency increases with N.
 # Fixed Variables: f=0 (Baseline performance), Pacemaker=Adaptive, Fault=Crash
 configurations:
-  - num_replicas: [5, 10, 15, 25]  # Logarithmic-ish scale
+  - num_replicas: [5, 7, 10, 15]  # Logarithmic-ish scale
     num_faulty: [0]                  # No faults for pure scalability baseline
     pacemaker_type: [baseline]       # Standard HotStuff behavior
     fault_type: [CRASH]

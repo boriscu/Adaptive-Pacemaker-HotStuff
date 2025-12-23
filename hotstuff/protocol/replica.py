@@ -255,11 +255,9 @@ class Replica:
         if self._is_faulty and self._fault_type == FaultType.CRASH:
             return []
         
-        # SILENT fault: update internal state from messages but don't vote
         if self._is_faulty and self._fault_type == FaultType.SILENT:
             if message.view_number < self._current_view:
                 return []
-            # Just log and return - no voting
             self._logger.warning(f"SILENT fault: received {message.message_type.name} but not responding")
             return [{
                 "type": "BYZANTINE_ACTION",
@@ -269,7 +267,6 @@ class Replica:
                 "timestamp": current_time
             }]
         
-        # RANDOM_DROP fault: 50% chance to ignore message
         if self._is_faulty and self._fault_type == FaultType.RANDOM_DROP:
             if random.random() < 0.5:
                 self._logger.warning(f"RANDOM_DROP: dropped {message.message_type.name}")

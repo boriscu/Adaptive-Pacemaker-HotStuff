@@ -41,6 +41,14 @@
                         <input type="number" id="config-faulty" min="0" max="30" value="1">
                     </div>
                     <div class="config-row">
+                        <label for="config-fault-type">Fault Type:</label>
+                        <select id="config-fault-type">
+                            <option value="CRASH">Crash</option>
+                            <option value="SILENT">Silent</option>
+                            <option value="RANDOM_DROP">Random Drop</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
                         <label for="config-pacemaker">Pacemaker:</label>
                         <select id="config-pacemaker">
                             <option value="baseline">Baseline</option>

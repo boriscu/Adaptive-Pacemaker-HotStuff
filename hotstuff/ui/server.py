@@ -9,6 +9,7 @@ from flask import request
 
 from hotstuff.config.settings import Settings
 from hotstuff.domain.enumerations.pacemaker_type import PacemakerType
+from hotstuff.domain.enumerations.fault_type import FaultType
 from hotstuff.simulation.engine import SimulationEngine
 from hotstuff.metrics.collector import MetricsCollector
 from hotstuff.ui.api.state_api import create_state_blueprint
@@ -93,12 +94,18 @@ class Server:
             num_replicas = data.get("num_replicas", container.settings.num_replicas)
             num_faulty = data.get("num_faulty", container.settings.num_faulty)
             pacemaker_str = data.get("pacemaker_type", container.settings.pacemaker_type.name)
+            fault_type_str = data.get("fault_type", container.settings.fault_type.name)
             base_timeout = data.get("base_timeout_ms", container.settings.base_timeout_ms)
             
             try:
                 pacemaker_type = PacemakerType[pacemaker_str.upper()]
             except KeyError:
                 pacemaker_type = PacemakerType.BASELINE
+            
+            try:
+                fault_type = FaultType[fault_type_str.upper()]
+            except KeyError:
+                fault_type = FaultType.CRASH
             
             if num_faulty >= num_replicas:
                 return jsonify({
@@ -112,6 +119,7 @@ class Server:
                 num_replicas=num_replicas,
                 num_faulty=num_faulty,
                 pacemaker_type=pacemaker_type,
+                fault_type=fault_type,
                 base_timeout_ms=base_timeout,
                 random_seed=container.settings.random_seed
             )
@@ -125,6 +133,7 @@ class Server:
                 "quorum_size": new_settings.quorum_size,
                 "max_faulty": new_settings.max_faulty,
                 "pacemaker_type": new_settings.pacemaker_type.name,
+                "fault_type": new_settings.fault_type.name,
                 "base_timeout_ms": new_settings.base_timeout_ms
             })
         

@@ -11,6 +11,7 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 from hotstuff.domain.enumerations.pacemaker_type import PacemakerType
+from hotstuff.domain.enumerations.fault_type import FaultType
 from hotstuff.config.constants.defaults import DEFAULT_NUM_REPLICAS
 from hotstuff.config.constants.defaults import DEFAULT_NUM_FAULTY
 from hotstuff.config.constants.defaults import DEFAULT_BASE_TIMEOUT_MS
@@ -70,6 +71,10 @@ class Settings(BaseSettings):
     pacemaker_type: PacemakerType = Field(
         default=PacemakerType.BASELINE,
         description="Type of pacemaker to use."
+    )
+    fault_type: FaultType = Field(
+        default=FaultType.CRASH,
+        description="Type of fault to inject into faulty replicas."
     )
     simulation_speed: float = Field(
         default=DEFAULT_SIMULATION_SPEED,

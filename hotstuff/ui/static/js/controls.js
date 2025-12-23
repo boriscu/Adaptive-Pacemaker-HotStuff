@@ -35,6 +35,7 @@ const Controls = {
             const config = {
                 num_replicas: parseInt(replicasInput.value),
                 num_faulty: parseInt(faultyInput.value),
+                fault_type: document.getElementById('config-fault-type').value,
                 pacemaker_type: pacemakerSelect.value,
                 base_timeout_ms: parseInt(timeoutInput.value)
             };

@@ -81,7 +81,8 @@ class BenchmarkRunner:
             events = engine.start()
             metrics.set_start_time(0)
             
-            max_steps = config.max_views * 100
+            scale_factor = 50 * (1 + config.num_faulty)
+            max_steps = config.max_views * config.num_replicas * scale_factor
             step_count = 0
             
             while step_count < max_steps:

@@ -21,7 +21,7 @@ configurations:
     num_faulty: [0]                  # No faults for pure scalability baseline
     pacemaker_type: [baseline]       # Standard HotStuff behavior
     fault_type: [CRASH]
-    base_timeout_ms: [1000]
+    base_timeout_ms: [20000]
 
 # -----------------------------------------------------------------------------
 # SCENARIO 2: FAULT TOLERANCE TEST (Varying Faults)

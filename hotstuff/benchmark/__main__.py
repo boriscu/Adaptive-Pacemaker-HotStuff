@@ -306,28 +306,38 @@ def main():
     
     StructuredLogger.configure(args.log_level)
     
-    # Load or build configuration
-    if args.config:
+    config_path = args.config
+    
+    if not config_path and Path("benchmark_config.yaml").exists():
+        conflicting_args = ["--num", "--pace", "--fault", "--max-views", "--runs", "--seed"]
+        has_cli_config_args = any(any(arg.startswith(prefix) for prefix in conflicting_args) 
+                                 for arg in sys.argv)
+        
+        if not has_cli_config_args:
+            print("   Found benchmark_config.yaml, loading...")
+            config_path = "benchmark_config.yaml"
+        else:
+            print("   Ignoring benchmark_config.yaml due to CLI arguments override.")
+    
+    if config_path:
         try:
-            benchmark_config = load_config_from_yaml(args.config)
+            benchmark_config = load_config_from_yaml(config_path)
+            print(f"   Loaded config: {benchmark_config.name}")
         except Exception as e:
             print(f"Error loading config: {e}")
             sys.exit(1)
     else:
         benchmark_config = build_config_from_args(args)
     
-    # Run benchmark
     runner = BenchmarkRunner(verbose=not args.quiet)
     results = runner.run_batch(benchmark_config)
     
-    # Aggregate if requested
     if args.aggregate:
         aggregated = runner.aggregate_results(results)
         export_data = [r.to_dict() for r in aggregated]
     else:
         export_data = [r.to_dict() for r in results]
     
-    # Export results
     output_path = args.output
     if output_path.endswith('.json'):
         export_json(export_data, output_path)

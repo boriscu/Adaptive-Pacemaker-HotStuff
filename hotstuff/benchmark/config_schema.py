@@ -41,7 +41,7 @@ class ConfigurationSet(BaseModel):
     num_faulty: List[int] = Field(default=[1], description="Faulty counts to test")
     pacemaker_type: List[str] = Field(default=["baseline"], description="Pacemaker types")
     fault_type: List[str] = Field(default=["CRASH"], description="Fault types")
-    base_timeout_ms: List[int] = Field(default=[1000], description="Timeout values")
+    base_timeout_ms: List[int] = Field(default=[20000], description="Timeout values")
 
 
 class BenchmarkConfig(BaseModel):

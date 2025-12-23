@@ -1,0 +1,14 @@
+# HotStuff Benchmark Configuration
+# This is a sample config file for batch simulations
+
+name: "Basic HotStuff Benchmark"
+max_views: 20
+runs_per_config: 3
+random_seed_base: 42
+
+configurations:
+  - num_replicas: [4, 7]
+    num_faulty: [0, 1]
+    pacemaker_type: [baseline, adaptive]
+    fault_type: [CRASH]
+    base_timeout_ms: [1000]

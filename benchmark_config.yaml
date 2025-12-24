@@ -17,12 +17,12 @@ random_seed_base: 2024
 # Objective: Measure throughput degradation as committee size grows.
 # Hypothesis: Throughput decreases linearly/log-linearly with N.
 # Fixed: f=0, Pacemaker=Baseline, Fault=Crash (irrelevant as f=0)
-configurations:
-  - num_replicas: [4, 10, 20, 40, 60]
-    num_faulty: [0]
-    pacemaker_type: [baseline]
-    fault_type: [CRASH]
-    base_timeout_ms: [1000]
+# configurations:
+#   - num_replicas: [4, 10, 20, 40, 60]
+#     num_faulty: [0]
+#     pacemaker_type: [baseline]
+#     fault_type: [CRASH]
+#     base_timeout_ms: [1000]
 
 # -----------------------------------------------------------------------------
 # SCENARIO 2: FAULT TOLERANCE COMPARISON (Varying Fault Types)
@@ -50,3 +50,16 @@ configurations:
 #     pacemaker_type: [baseline, adaptive]
 #     fault_type: [RANDOM_DROP]
 #     base_timeout_ms: [1000]
+
+# -----------------------------------------------------------------------------
+# SCENARIO 4: SAFETY VIOLATION / LIVENESS FAILURE (Exceeding f)
+# -----------------------------------------------------------------------------
+# Objective: Demonstrate failure when f >= n/3.
+# Hypothesis: System stalls (0 throughput) as quorum (2f+1) cannot be formed.
+# Limit: For n=10, max f=3. Testing f=4.
+configurations:
+  - num_replicas: [10]
+    num_faulty: [4]
+    pacemaker_type: [baseline]
+    fault_type: [CRASH]
+    base_timeout_ms: [1000]

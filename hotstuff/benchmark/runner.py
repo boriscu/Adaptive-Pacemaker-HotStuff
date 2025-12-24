@@ -83,13 +83,15 @@ class BenchmarkRunner:
             base_scale = 100
             fault_multiplier = 1 + config.num_faulty
             scale_factor = base_scale * fault_multiplier
-            max_steps = config.max_views * config.num_replicas * config.num_replicas * scale_factor
+            raw_max_steps = config.max_views * config.num_replicas * config.num_replicas * scale_factor
+            max_steps = min(raw_max_steps, 200000)
             step_count = 0
             
             while step_count < max_steps:
                 event = engine.step()
                 if event is None:
                     break
+                
                 step_count += 1
             
             for event in engine.get_event_history():

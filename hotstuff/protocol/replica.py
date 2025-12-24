@@ -200,7 +200,7 @@ class Replica:
                 self._current_view = view_number
                 self._current_phase = PhaseType.NEW_VIEW
                 self._protocol_handler.clear_new_view_messages()
-                self._logger.warning(f"RANDOM_DROP: dropped new-view for view {view_number}")
+                self._logger.debug(f"RANDOM_DROP: dropped new-view for view {view_number}")
                 return [{
                     "type": "BYZANTINE_ACTION",
                     "replica_id": self._replica_id,
@@ -269,7 +269,7 @@ class Replica:
         
         if self._is_faulty and self._fault_type == FaultType.RANDOM_DROP:
             if random.random() < 0.5:
-                self._logger.warning(f"RANDOM_DROP: dropped {message.message_type.name}")
+                self._logger.debug(f"RANDOM_DROP: dropped {message.message_type.name}")
                 return [{
                     "type": "BYZANTINE_ACTION",
                     "replica_id": self._replica_id,

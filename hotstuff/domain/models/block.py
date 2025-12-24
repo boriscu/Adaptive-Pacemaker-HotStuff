@@ -61,19 +61,4 @@ class Block(BaseModel):
         hash_value = hashlib.sha256(content.encode()).hexdigest()[:16]
         return BlockHash(hash_value)
     
-    def extends(self, ancestor_hash: Optional[BlockHash]) -> bool:
-        """
-        Check if this block extends (is a descendant of) the given ancestor.
-        
-        For now, this only checks direct parent. In a full implementation,
-        this would traverse the chain.
-        
-        Args:
-            ancestor_hash: The hash of the potential ancestor block.
-            
-        Returns:
-            True if this block extends the ancestor, False otherwise.
-        """
-        if ancestor_hash is None:
-            return True
-        return self.parent_hash == ancestor_hash
+

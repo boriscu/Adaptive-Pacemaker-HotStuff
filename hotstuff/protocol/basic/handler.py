@@ -452,15 +452,15 @@ class BasicHotStuffHandler:
         is_leader: bool,
         committed_block_hashes: set,
         current_time: int
-    ) -> tuple[List[dict], Optional[Block], Optional[PhaseType]]:
+    ) -> tuple[List[dict], List[Block], Optional[PhaseType]]:
         """
         Handle a COMMIT_VOTE (leader only).
         
         Returns:
-            Tuple of (events, committed_block, new_phase).
+            Tuple of (events, committed_blocks, new_phase).
         """
         if not is_leader:
-            return [], None, None
+            return [], [], None
         
         qc = self._vote_collector.add_vote(vote)
         
@@ -477,58 +477,96 @@ class BasicHotStuffHandler:
             self._logger.info(f"Formed commitQC, broadcasting DECIDE")
             
             block = self._block_store.get(qc.block_hash)
-            if block and block.block_hash not in committed_block_hashes:
-                self._logger.info(f"Executed block {block.block_hash[:8]} at height {block.height}")
+            if block:
+                events, committed_blocks = self._execute_branch(
+                    block, committed_block_hashes, current_time
+                )
                 
-                events = [
-                    {
-                        "type": "QC_FORMATION",
-                        "replica_id": self._replica_id,
-                        "qc_type": "COMMIT",
-                        "view": current_view,
-                        "timestamp": current_time
-                    },
-                    {
-                        "type": "COMMIT",
-                        "replica_id": self._replica_id,
-                        "block_hash": block.block_hash,
-                        "height": block.height,
-                        "timestamp": current_time
-                    }
-                ]
+                # Add QC formation event
+                events.insert(0, {
+                    "type": "QC_FORMATION",
+                    "replica_id": self._replica_id,
+                    "qc_type": "COMMIT",
+                    "view": current_view,
+                    "timestamp": current_time
+                })
                 
-                return events, block, PhaseType.DECIDE
+                if committed_blocks:
+                    return events, committed_blocks, PhaseType.DECIDE
         
-        return [], None, None
+        return [], [], None
+
     
     def handle_decide(
         self,
         message: DecideMessage,
         committed_block_hashes: set,
         current_time: int
-    ) -> tuple[List[dict], Optional[Block], Optional[PhaseType]]:
+    ) -> tuple[List[dict], List[Block], Optional[PhaseType]]:
         """
         Handle a DECIDE message.
         
         Returns:
-            Tuple of (events, committed_block, new_phase).
+            Tuple of (events, committed_blocks, new_phase).
         """
         block = self._block_store.get(message.commit_qc.block_hash)
         
-        if block and block.block_hash not in committed_block_hashes:
-            self._logger.info(f"Executed block {block.block_hash[:8]} at height {block.height}")
+        if block:
+            events, committed_blocks = self._execute_branch(
+                block, committed_block_hashes, current_time
+            )
             
-            events = [{
+            if committed_blocks:
+                return events, committed_blocks, PhaseType.DECIDE
+        
+        return [], [], None
+
+    def _execute_branch(
+        self,
+        block: Block,
+        committed_block_hashes: set,
+        current_time: int
+    ) -> tuple[List[dict], List[Block]]:
+        """
+        Execute a block and its uncommitted ancestors.
+        
+        Args:
+            block: The tip block to execute.
+            committed_block_hashes: Set of already committed block hashes.
+            current_time: Current simulation time.
+            
+        Returns:
+            Tuple of (events, list_of_executed_blocks).
+        """
+        to_commit = []
+        current_block = block
+        
+        # Traverse up until we find an already committed block or genesis
+        while (current_block is not None and 
+               current_block.block_hash not in committed_block_hashes):
+            
+            # Stop if we hit genesis (height 0) and we assume it's committed/doesn't need commit
+            if current_block.height == 0:
+                break
+                
+            to_commit.append(current_block)
+            current_block = self._block_store.get(current_block.parent_hash)
+        
+        # Reverse to execute in order (oldest -> newest)
+        to_commit.reverse()
+        
+        events = []
+        for b in to_commit:
+            self._logger.info(f"Executed block {b.block_hash[:8]} at height {b.height}")
+            events.append({
                 "type": "COMMIT",
                 "replica_id": self._replica_id,
-                "block_hash": block.block_hash,
-                "height": block.height,
+                "block_hash": b.block_hash,
+                "height": b.height,
                 "timestamp": current_time
-            }]
+            })
             
-            return events, block, PhaseType.DECIDE
-        
-        return [], None, None
+        return events, to_commit
     
     def clear_new_view_messages(self) -> None:
         """Clear collected new-view messages for a new view."""

@@ -3,61 +3,50 @@
 # This configuration file defines standardized scenarios for evaluating
 # the HotStuff consensus protocol performance and robustness.
 
-name: "Academic Scalability Benchmark"
-max_views: 50         # Sufficient depth to reach steady state
-runs_per_config: 10   # Statistical significance (mean +/- std dev)
+name: "HotStuff Comprehensive Benchmark"
+max_views: 100        # Run long enough to see steady state
+runs_per_config: 5    # 5 runs per config for average metrics
 random_seed_base: 2024
 
-# SELECT PREFERRED SCENARIO BY UNCOMMENTING ONE SECTION BELOW
+# UNCOMMENT ONE SCENARIO AT A TIME TO RUN
+# (Running all at once may take a long time)
 
 # -----------------------------------------------------------------------------
 # SCENARIO 1: SCALABILITY TEST (Varying Replicas)
 # -----------------------------------------------------------------------------
-# Evaluating throughput and latency as the network size grows.
-# Hypothesis: Throughput decreases and latency increases with N.
-# Fixed Variables: f=0 (Baseline performance), Pacemaker=Adaptive, Fault=Crash
+# Objective: Measure throughput degradation as committee size grows.
+# Hypothesis: Throughput decreases linearly/log-linearly with N.
+# Fixed: f=0, Pacemaker=Baseline, Fault=Crash (irrelevant as f=0)
 configurations:
-  - num_replicas: [5, 7, 10, 15]  # Logarithmic-ish scale
-    num_faulty: [0]                  # No faults for pure scalability baseline
-    pacemaker_type: [baseline]       # Standard HotStuff behavior
+  - num_replicas: [4, 10, 20, 40, 60]
+    num_faulty: [0]
+    pacemaker_type: [baseline]
     fault_type: [CRASH]
-    base_timeout_ms: [20000]
+    base_timeout_ms: [1000]
 
 # -----------------------------------------------------------------------------
-# SCENARIO 2: FAULT TOLERANCE TEST (Varying Faults)
+# SCENARIO 2: FAULT TOLERANCE COMPARISON (Varying Fault Types)
 # -----------------------------------------------------------------------------
-# Evaluating robustness under increasing Byzantine presence.
-# Hypothesis: Performance degrades as f approach 1/3 n.
-# Fixed Variables: n=64 (Medium network), Pacemaker=Adaptive
+# Objective: Compare impact of different fault models on liveness.
+# Hypothesis: Silent/Drop faults cause more view changes than Crash faults.
+# Fixed: n=10, f=3 (Max faults), Pacemaker=Baseline
 # configurations:
-#   - num_replicas: [64]
-#     num_faulty: [0, 8, 16, 21]     # 0%, ~12%, ~25%, ~33% (max f=21)
-#     pacemaker_type: [adaptive]
-#     fault_type: [CRASH]
-#     base_timeout_ms: [1000]
-
-# -----------------------------------------------------------------------------
-# SCENARIO 3: PACEMAKER COMPARISON (Adaptive vs Baseline)
-# -----------------------------------------------------------------------------
-# Evaluating the benefit of the adaptive pacemaker under faults.
-# Hypothesis: Adaptive pacemaker maintains higher throughput under partial faults.
-# Fixed Variables: n=32, f=10 (High fault rate ~30%)
-# configurations:
-#   - num_replicas: [32]
-#     num_faulty: [10]
-#     pacemaker_type: [baseline, adaptive]
-#     fault_type: [CRASH]
-#     base_timeout_ms: [1000]
-
-# -----------------------------------------------------------------------------
-# SCENARIO 4: ATTACK RESILIENCE (Byzantine Strategies)
-# -----------------------------------------------------------------------------
-# Evaluating impact of different adversarial strategies.
-# Hypothesis: Silent/Network attacks disrupt liveness more than random behavior.
-# Fixed Variables: n=16, f=5, Pacemaker=Baseline
-# configurations:
-#   - num_replicas: [16]
-#     num_faulty: [5]
+#   - num_replicas: [10]
+#     num_faulty: [3]
 #     pacemaker_type: [baseline]
 #     fault_type: [CRASH, SILENT, RANDOM_DROP]
+#     base_timeout_ms: [1000]
+
+# -----------------------------------------------------------------------------
+# SCENARIO 3: PACEMAKER EFFICENCY (Adaptive vs Baseline)
+# -----------------------------------------------------------------------------
+# Objective: Evaluate Adaptive Pacemaker benefit under unstable conditions.
+# Note: Using RANDOM_DROP fault to simulate network instability/packet loss.
+# Hypothesis: Adaptive pacemaker converges to optimal timeout, reducing view changes.
+# Fixed: n=10, f=3
+# configurations:
+#   - num_replicas: [10]
+#     num_faulty: [3]
+#     pacemaker_type: [baseline, adaptive]
+#     fault_type: [RANDOM_DROP]
 #     base_timeout_ms: [1000]

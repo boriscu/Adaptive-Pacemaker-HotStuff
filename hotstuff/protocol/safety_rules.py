@@ -95,6 +95,9 @@ class SafetyRules:
         Returns:
             True if block extends ancestor, False otherwise.
         """
+        if block.block_hash == ancestor_hash:
+            return True
+            
         current_hash = block.parent_hash
         visited = set()
         
@@ -106,10 +109,14 @@ class SafetyRules:
             
             parent_block = self._block_registry.get(current_hash)
             if parent_block is None:
+                self._logger.debug(
+                    f"Ancestry check failed: missing block {current_hash} "
+                    f"while checking if {block.block_hash} extends {ancestor_hash}"
+                )
                 break
             current_hash = parent_block.parent_hash
         
-        return block.parent_hash == ancestor_hash
+        return False
     
     def validate_qc(
         self,

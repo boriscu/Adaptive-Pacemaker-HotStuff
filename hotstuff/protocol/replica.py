@@ -394,7 +394,7 @@ class Replica:
     
     def _handle_commit_vote(self, vote: CommitVote, current_time: int) -> List[dict]:
         """Handle a commit vote (leader only)."""
-        events, committed_block, new_phase = self._protocol_handler.handle_commit_vote(
+        events, committed_blocks, new_phase = self._protocol_handler.handle_commit_vote(
             vote=vote,
             current_view=self._current_view,
             is_leader=self.is_leader(),
@@ -402,9 +402,10 @@ class Replica:
             current_time=current_time
         )
         
-        if committed_block is not None:
-            self._committed_blocks.append(committed_block)
-            self._committed_block_hashes.add(committed_block.block_hash)
+        for block in committed_blocks:
+            self._committed_blocks.append(block)
+            self._committed_block_hashes.add(block.block_hash)
+            
         if new_phase is not None:
             self._current_phase = new_phase
         
@@ -412,15 +413,16 @@ class Replica:
     
     def _handle_decide(self, message: DecideMessage, current_time: int) -> List[dict]:
         """Handle a decide message."""
-        events, committed_block, new_phase = self._protocol_handler.handle_decide(
+        events, committed_blocks, new_phase = self._protocol_handler.handle_decide(
             message=message,
             committed_block_hashes=self._committed_block_hashes,
             current_time=current_time
         )
         
-        if committed_block is not None:
-            self._committed_blocks.append(committed_block)
-            self._committed_block_hashes.add(committed_block.block_hash)
+        for block in committed_blocks:
+            self._committed_blocks.append(block)
+            self._committed_block_hashes.add(block.block_hash)
+            
         if new_phase is not None:
             self._current_phase = new_phase
         

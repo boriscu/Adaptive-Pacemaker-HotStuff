@@ -113,6 +113,11 @@ class SimulationEngine:
     
     def _start_view(self, view_number: ViewNumber) -> List[dict]:
         """Start a new view for all replicas."""
+        if view_number > self._settings.max_views:
+            self._logger.info(f"Max views ({self._settings.max_views}) reached, stopping simulation")
+            self._is_running = False
+            return []
+
         self._current_view = view_number
         self._view_start_times[view_number] = self._clock.current_time
         
@@ -254,6 +259,10 @@ class SimulationEngine:
         
         self._logger.info(f"Replica {replica_id} timeout in view {view}")
         
+        if next_view > self._settings.max_views:
+             # Stop this replica
+             return event
+
         view_events = replica.start_view(next_view, self._clock.current_time)
         for v_event in view_events:
             self._event_history.append(v_event)
@@ -299,6 +308,9 @@ class SimulationEngine:
             self._current_view = next_view
             self._view_start_times[next_view] = self._clock.current_time
         
+        if next_view > self._settings.max_views:
+            return
+
         view_events = self._replicas[replica_id].start_view(next_view, self._clock.current_time)
         for v_event in view_events:
             self._event_history.append(v_event)

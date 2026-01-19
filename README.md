@@ -124,6 +124,78 @@ python -m pytest hotstuff/tests/unit/ -v
 python -m pytest hotstuff/tests/integration/ -v
 ```
 
+## Running Benchmarks
+
+The project includes a comprehensive benchmarking system for evaluating protocol performance under various conditions.
+
+### Using YAML Configuration
+
+The easiest way to run benchmarks is using the `benchmark_config.yaml` file:
+
+```bash
+# Run benchmarks using the config file (auto-detected if present in root)
+python -m hotstuff.benchmark
+
+# Explicitly specify config file
+python -m hotstuff.benchmark --config benchmark_config.yaml
+
+# Run with aggregated results and plots
+python -m hotstuff.benchmark --aggregate --plot
+
+# Export to specific output file
+python -m hotstuff.benchmark -o results/my_benchmark.csv
+```
+
+### Using CLI Arguments
+
+You can also run benchmarks with command-line arguments:
+
+```bash
+# Basic benchmark with custom parameters
+python -m hotstuff.benchmark --num-replicas 4,7,10 --pacemaker baseline,adaptive --runs 5
+
+# Full example with all options
+python -m hotstuff.benchmark \
+    --num-replicas 10,20 \
+    --num-faulty 1,3 \
+    --pacemaker baseline,adaptive \
+    --fault-type CRASH,SILENT,RANDOM_DROP \
+    --max-views 100 \
+    --runs 5 \
+    --output results/benchmark.csv \
+    --aggregate \
+    --plot
+```
+
+### Benchmark CLI Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--config, -c` | Path to YAML configuration file | auto-detect |
+| `--num-replicas` | Comma-separated replica counts | 4 |
+| `--num-faulty` | Comma-separated faulty node counts | 1 |
+| `--pacemaker` | Pacemaker types: `baseline`, `adaptive` | baseline |
+| `--fault-type` | Fault types: `CRASH`, `SILENT`, `RANDOM_DROP` | CRASH |
+| `--max-views` | Maximum views per simulation | 30 |
+| `--runs, -r` | Runs per configuration | 5 |
+| `--seed` | Base random seed | 42 |
+| `--output, -o` | Output file path (CSV or JSON) | results/benchmark_results.csv |
+| `--aggregate, -a` | Output aggregated results | False |
+| `--plot, -p` | Generate plots (requires matplotlib) | False |
+| `--quiet, -q` | Suppress progress output | False |
+| `--log-level` | Logging level | WARNING |
+
+### Benchmark Scenarios
+
+The `benchmark_config.yaml` file includes pre-defined scenarios:
+
+1. **Scalability Test**: Measures throughput as committee size grows
+2. **Fault Tolerance Comparison**: Compares impact of different fault models
+3. **Pacemaker Efficiency**: Evaluates Adaptive vs Baseline pacemaker
+4. **Safety/Liveness Test**: Demonstrates failure when Byzantine limit exceeded
+
+Edit the YAML file and uncomment the desired scenario to run it.
+
 ## Configuration
 
 Configuration can be provided via:
